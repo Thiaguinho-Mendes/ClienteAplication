@@ -138,7 +138,11 @@ public class ClienteService {
 			JSONObject jsonCliente = new JSONObject();
 			jsonCliente.put("nome", c.getNome());
 			jsonCliente.put("tipoPessoa", c.getTipoPessoa());
-			jsonCliente.put("cpfCnpj", CpfCnpjValidator.cleanCpfCnpjRuc(c.getCpfCnpj()));
+			if(c.getTipoPessoaOriginal().equals(TipoPessoa.JURIDICA)) {
+				jsonCliente.put("cpfCnpj", CpfCnpjValidator.cleanCpfCnpjRuc(c.getCpfCnpj()));
+			} else {
+				jsonCliente.put("cpfCnpj", c.getCpfCnpj());
+			}
 			jsonCliente.put("telefone", c.getTelefone());
 			jsonCliente.put("email", c.getEmail());
 			jsonCliente.put("origem", c.getOrigemOriginal().name());
@@ -155,9 +159,9 @@ public class ClienteService {
 		String sql = "SELECT 1 FROM cliente WHERE cpfCnpj = ?";
 		try (PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql)) {
 			ps.setString(1, cpfCnpj);
-			ResultSet rs = ps.executeQuery();
-
-			return rs.next();
+			try (ResultSet rs = ps.executeQuery()){
+				return rs.next();
+			}
 		}
 	}
 
