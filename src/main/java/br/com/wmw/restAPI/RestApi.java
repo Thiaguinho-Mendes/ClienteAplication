@@ -5,6 +5,7 @@ import java.util.List;
 import br.com.wmw.domain.Cliente;
 import br.com.wmw.service.ClienteService;
 import totalcross.io.ByteArrayStream;
+import totalcross.io.IOException;
 import totalcross.json.JSONFactory;
 import totalcross.json.JSONObject;
 import totalcross.net.HttpStream;
@@ -30,7 +31,7 @@ public class RestApi extends MaterialWindow {
 						return (e) -> {
 							HttpStream.Options options = new HttpStream.Options();
 							options.httpType = httpType;
-							HttpStream httpStream;
+							HttpStream httpStream = null;
 							ClienteService service = new ClienteService();
 							
 							try {
@@ -55,6 +56,12 @@ public class RestApi extends MaterialWindow {
 								
 							} catch (Exception ex) {
 								new MessageBox("Erro", "Não foi possivel receber ou enviar dados: " + ex.getMessage()).popup();
+							} finally {
+								try {
+									httpStream.close();
+								} catch (IOException e1) {
+									e1.printStackTrace();
+								}
 							}
 						};
 					}
@@ -87,12 +94,13 @@ public class RestApi extends MaterialWindow {
 	    JSONObject requestData = new JSONObject();
 	    requestData.put("cpfCnpj", cpfCnpj);
 
+	    HttpStream httpStream = null;
 	    Options options = new Options();
 	    options.httpType = HttpStream.GET;
 	    options.data = requestData.toString();
 
 	    try {
-	        HttpStream httpStream = new HttpStream(new URI(url + "/exists/" + cpfCnpj), options);
+	    	httpStream = new HttpStream(new URI(url + "/exists/" + cpfCnpj), options);
 	        String response = httpStream.readLine();
 
 	        if("true".equals(response)) {
@@ -102,7 +110,13 @@ public class RestApi extends MaterialWindow {
 	        }
 	    } catch (Exception ex) {
 	        return false;
-	    }
+	    } finally {
+	    	try {
+				httpStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	public static void deleteClienteByWeb(String cpfCnpj) {

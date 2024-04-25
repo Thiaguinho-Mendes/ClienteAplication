@@ -8,6 +8,7 @@ import br.com.wmw.domain.Origem;
 import br.com.wmw.domain.TipoPessoa;
 import br.com.wmw.restAPI.RestApi;
 import br.com.wmw.restAPI.RestApi.Response;
+import br.com.wmw.ui.CpfCnpjValidator;
 import totalcross.io.IOException;
 import totalcross.json.JSONObject;
 import totalcross.net.HttpStream;
@@ -36,19 +37,22 @@ public class ClienteService {
 	public ArrayList<Cliente> findAll() throws SQLException {
 		ArrayList<Cliente> clientes = new ArrayList<>();
 		String sql = "SELECT codigo, nome, tipoPessoa, cpfCnpj, telefone, email, origem FROM cliente";
-		Statement ps = DatabaseManager.getConnection().createStatement();
-		ResultSet rs = ps.executeQuery(sql);
+		try (Statement ps = DatabaseManager.getConnection().createStatement()) {
 
-		while (rs.next()) {
-			Cliente cliente = new Cliente();
-			cliente.setCodigo(rs.getInt(1));
-			cliente.setNome(rs.getString(2).toString());
-			cliente.setTipoPessoaOriginal(TipoPessoa.valueOf(rs.getString(3)));
-			cliente.setCpfCnpj(rs.getString(4));
-			cliente.setTelefone(rs.getString(5));
-			cliente.setEmail(rs.getString(6));
-			cliente.setOrigemOriginal(Origem.valueOf(rs.getString(7)));
-			clientes.add(cliente);
+			try (ResultSet rs = ps.executeQuery(sql)) {
+
+				while (rs.next()) {
+					Cliente cliente = new Cliente();
+					cliente.setCodigo(rs.getInt(1));
+					cliente.setNome(rs.getString(2).toString());
+					cliente.setTipoPessoaOriginal(TipoPessoa.valueOf(rs.getString(3)));
+					cliente.setCpfCnpj(rs.getString(4));
+					cliente.setTelefone(rs.getString(5));
+					cliente.setEmail(rs.getString(6));
+					cliente.setOrigemOriginal(Origem.valueOf(rs.getString(7)));
+					clientes.add(cliente);
+				}
+			}
 		}
 
 		return clientes;
@@ -57,41 +61,47 @@ public class ClienteService {
 
 	public Cliente findByCpfCnpj(String cpfCnpj) throws SQLException {
 		String sql = "SELECT codigo, nome, tipoPessoa, cpfCnpj, telefone, email, origem FROM cliente WHERE cpfCnpj = ?";
-		PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql);
-		ps.setString(1, cpfCnpj);
-		ResultSet rs = ps.executeQuery();
+		try (PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql)) {
+			ps.setString(1, cpfCnpj);
+			try (ResultSet rs = ps.executeQuery()) {
 
-		Cliente cliente = new Cliente();
-		cliente.setCodigo(rs.getInt(1));
-		cliente.setNome(rs.getString(2).toString());
-		cliente.setTipoPessoaOriginal(TipoPessoa.valueOf(rs.getString(3)));
-		cliente.setCpfCnpj(rs.getString(4));
-		cliente.setTelefone(rs.getString(5));
-		cliente.setEmail(rs.getString(6));
-		cliente.setOrigemOriginal(Origem.valueOf(rs.getString(7)));
+				Cliente cliente = new Cliente();
+				cliente.setCodigo(rs.getInt(1));
+				cliente.setNome(rs.getString(2).toString());
+				cliente.setTipoPessoaOriginal(TipoPessoa.valueOf(rs.getString(3)));
+				cliente.setCpfCnpj(rs.getString(4));
+				cliente.setTelefone(rs.getString(5));
+				cliente.setEmail(rs.getString(6));
+				cliente.setOrigemOriginal(Origem.valueOf(rs.getString(7)));
 
-		return cliente;
+				return cliente;
+			}
+
+		}
 
 	}
 
 	public void deleteClienteByApp(String cpfCnpj) throws SQLException {
 		String sql = "DELETE FROM cliente WHERE cpfCnpj = ?";
-		PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql);
-		ps.setString(1, cpfCnpj);
-		ps.executeUpdate();
+		try (PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql)) {
+			ps.setString(1, cpfCnpj);
+			ps.executeUpdate();
 
-		if (checkClienteExistsWeb(cpfCnpj)) {
-			RestApi.deleteClienteByWeb(cpfCnpj);
+			if (checkClienteExistsWeb(cpfCnpj)) {
+				RestApi.deleteClienteByWeb(cpfCnpj);
+			}
 		}
 	}
 
 	public void update(Cliente cliente) throws SQLException {
 		String sql = "UPDATE cliente SET telefone = ?, email = ? WHERE cpfCnpj = ?";
-		PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql);
-		ps.setString(1, cliente.getTelefone());
-		ps.setString(2, cliente.getEmail());
-		ps.setString(3, cliente.getCpfCnpj());
-		ps.executeUpdate();
+		try (PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql)) {
+			ps.setString(1, cliente.getTelefone());
+			ps.setString(2, cliente.getEmail());
+			ps.setString(3, cliente.getCpfCnpj());
+			ps.executeUpdate();
+		}
+
 	}
 
 	public void recebeDados(Response<Cliente> response) throws SQLException {
@@ -128,24 +138,27 @@ public class ClienteService {
 			JSONObject jsonCliente = new JSONObject();
 			jsonCliente.put("nome", c.getNome());
 			jsonCliente.put("tipoPessoa", c.getTipoPessoa());
-			jsonCliente.put("cpfCnpj", c.getCpfCnpj());
+			jsonCliente.put("cpfCnpj", CpfCnpjValidator.cleanCpfCnpjRuc(c.getCpfCnpj()));
 			jsonCliente.put("telefone", c.getTelefone());
 			jsonCliente.put("email", c.getEmail());
 			jsonCliente.put("origem", c.getOrigemOriginal().name());
 
 			options.data = jsonCliente.toString();
-			new HttpStream(new URI(url), options);
+			HttpStream http = new HttpStream(new URI(url), options);
+			http.close();
+
 		}
 		;
 	}
 
 	public boolean existCpfCnpj(String cpfCnpj) throws SQLException {
 		String sql = "SELECT 1 FROM cliente WHERE cpfCnpj = ?";
-		PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql);
-		ps.setString(1, cpfCnpj);
-		ResultSet rs = ps.executeQuery();
+		try (PreparedStatement ps = DatabaseManager.getConnection().prepareStatement(sql)) {
+			ps.setString(1, cpfCnpj);
+			ResultSet rs = ps.executeQuery();
 
-		return rs.next();
+			return rs.next();
+		}
 	}
 
 	public boolean checkClienteExistsWeb(String cpfCnpj) {
@@ -160,7 +173,7 @@ public class ClienteService {
 	public void syncClientes() throws SQLException {
 		ArrayList<Cliente> clientesApp = findAll();
 		for (Cliente clienteApp : clientesApp) {
-			if (!checkClienteExistsWeb(clienteApp.getCpfCnpj()) && clienteApp.getOrigemOriginal().equals(Origem.APP)) {
+			if (!checkClienteExistsWeb(clienteApp.getCpfCnpj())) {
 				deleteClienteByApp(clienteApp.getCpfCnpj());
 
 			}

@@ -41,7 +41,7 @@ class ClienteAplicationTest {
 	
 	@Test
 	void deveRetornarFalseClientesCadastradoComCpfInnvalido() throws SQLException {
-		Cliente cliente1 = new Cliente("Maria", TipoPessoa.FISICA, "111.111.111-11", "48999999999", "", Origem.APP);
+		Cliente cliente1 = new Cliente("Maria", TipoPessoa.FISICA, "111.111.111-12", "48999999999", "", Origem.APP);
 		if(CpfCnpjValidator.isCpfValid(cliente1.getCpfCnpj()) && !service.existCpfCnpj(cliente1.getCpfCnpj())) {
 			service.create(cliente1);
 		}
